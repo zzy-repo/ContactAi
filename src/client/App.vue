@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { usePdfViewerStore } from './stores/pdfViewer'
 import { ref } from 'vue'
 
+// 全局变量
 const store = usePdfViewerStore()
 const {
     pdfDoc,
@@ -15,10 +16,11 @@ const {
     totalPages,
     element,
     allItems,
-    docx_content
+    docx_content,
+    isCherking
 } = storeToRefs(store)
 
-// 修改后的 renderPage 方法
+// pdf 渲染部分
 const renderPage = async (pageNumber) => {
     try {
         // 添加前置校验
@@ -126,12 +128,47 @@ const setupSearch = () => {
     }
 }
 
+// 智能审查功能
+const handleSmartCherk = async () => {
+    try {
+        // 防止重复点击
+        if (isCherking.value) {
+            return
+        }
+        isCherking.value = true
 
-const setupSmartCherk = async () => {
-    const handleSmartCherk = () => {
-        console.log(docx_content.value)
+        // 发送请求
+        const contractContent = docx_content.value
+        if (!contractContent) {
+            throw error('contractContent的值为空')
+        }
+        const response = await fetch('/api/check-contract', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ contractContent: contractContent })
+        })
+        if (!response.ok) {
+            throw new Error('Network response was not ok:' + response.statusText);
+        }
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error('Failed to fetch document:', data.error.message);
+        }
+
+        // 页面展示
+        //console.log(data.content)
+
     }
-
+    catch (err) {
+        console.error("智能审查时出现错误:", err)
+    }
+    finally {
+        isCherking.value = false
+    }
+}
+const setupSmartCherk = () => {
     document.getElementById('SmartCherk-btn').addEventListener('click', handleSmartCherk)
     return () => {
         document.getElementById('SmartCherk-btn').removeEventListener('click', handleSmartCherk)
@@ -139,6 +176,8 @@ const setupSmartCherk = async () => {
 
 }
 
+
+// 页面初始化
 const loadPdf = async (url, canvasElementId) => {
     store.element = document.getElementById('pdf-canvas')
     try {
@@ -153,11 +192,10 @@ const loadPdf = async (url, canvasElementId) => {
         alert(`PDF加载失败: ${error.message}`)
     }
 }
-
 const setDocument = async () => {
     const response = await fetch('/api/document'); // 替换为实际的API URL
     if (!response.ok) {
-        throw new Error('Network response was not ok ' + response.statusText);
+        throw new Error('Network response was not ok:' + response.statusText);
     }
     const data = await response.json();
     if (!data.success) {
@@ -166,11 +204,10 @@ const setDocument = async () => {
     docx_content.value = data.content
 
 }
-
-// 初始化
 onMounted(async () => {
     loadPdf('/api/sample.pdf', 'pdf-canvas')
     setDocument()
+
 })
 
 // 添加事件监听器
@@ -208,6 +245,7 @@ onMounted(() => {
                 <canvas id="pdf-canvas"
                     class="flex-grow p-5 bg-white border-r border-[#e0e0e0] border-solid overflow-y-auto"></canvas>
                 <div id="sidebar" class="w-100 p-5 bg-white border-l border-[#e0e0e0] border-solid overflow-y-auto">
+                    <p v-if="isCherking">等待回答...</p>
                     <ul class="p-0 m-0">
                         <li v-for="result in results" :key="result.str" class="list-item"
                             @click="renderPage(result.pageNumber)">

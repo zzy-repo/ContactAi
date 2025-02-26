@@ -15,6 +15,7 @@ export const usePdfViewerStore = defineStore('pdfViewer', () => {
     const element = ref(null)
     const allItems = reactive([]) // 使用 reactive 保持数组响应性
     const docx_content = ref('')
+    const isCherking = ref(false)
 
     // Actions（处理异步操作和复杂逻辑）
     const init = async (pdfDocument) => {
@@ -72,6 +73,7 @@ export const usePdfViewerStore = defineStore('pdfViewer', () => {
         element,
         allItems,
         docx_content,
+        isCherking,
 
         // Actions
         init,
