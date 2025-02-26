@@ -1,40 +1,22 @@
 <script setup>
-import { onMounted } from 'vue';
+import PaginationUtils from './modules/paginationUtils.js';
+import pdfRenderer from './modules/pdfRenderer.js';
+import searchUtils from './modules/searchUtils.js';
+import { stateManager } from './modules/stateManager.js';
 
-// import PaginationUtils from './modules/paginationUtils.js';
-// import pdfRenderer from './modules/pdfRenderer.js';
-// import searchUtils from './modules/searchUtils.js';
-// import { stateManager } from './modules/stateManager.js';
+stateManager.setElement(document.getElementById('pdf-canvas'))
 
-// stateManager.setElement(document.getElementById('pdf-canvas'))
+// 初始化 PDF 加载
+await pdfRenderer.loadPdf('/api/sample.pdf');
 
-// // 初始化 PDF 加载
-// await pdfRenderer.loadPdf('/api/sample.pdf');
+// 设置分页导航
+PaginationUtils.setupPagination(['prev', 'next'], stateManager);
 
-// // 设置分页导航
-// PaginationUtils.setupPagination(['prev', 'next'], stateManager);
-
-// // 设置搜索功能
-// const searchInput = document.getElementById('search-input');
-// const searchButton = document.getElementById('search-btn');
-// const sidebarElement = document.getElementById('sidebar')
-// searchUtils.setupSearch(searchInput, searchButton, sidebarElement, stateManager);
-
-
-onMounted(() => {
-    // 测试 /api/sample.pdf 是否可以找到
-    fetch('/api/sample.pdf')
-        .then(response => {
-            if (response.ok) {
-                console.log('File found:', response.url);
-            } else {
-                console.error('File not found:', response.status, response.statusText);
-            }
-        })
-        .catch(error => {
-            console.error('Fetch error:', error);
-        });
-})
+// 设置搜索功能
+const searchInput = document.getElementById('search-input');
+const searchButton = document.getElementById('search-btn');
+const sidebarElement = document.getElementById('sidebar')
+searchUtils.setupSearch(searchInput, searchButton, sidebarElement, stateManager);
 </script>
 
 <template>

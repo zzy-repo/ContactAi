@@ -1,5 +1,6 @@
 import { stateManager } from './stateManager.js';
 import searchUtils from './searchUtils.js'
+import * as pdfjsLib from 'pdfjs-dist';
 
 export default class pdfRenderer {
     constructor() {
@@ -104,8 +105,15 @@ export default class pdfRenderer {
      */
     static async loadPdf(url) {
         try {
+            // 通过 fetch 获取 PDF 数据，再传递给 pdfjsLib
+            const response = await fetch(url); // 相对路径会被 Vite 代理转发
+            if (!response.ok) {
+                throw new Error('Failed to fetch PDF');
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
             // 使用 pdfjsLib 加载 PDF 文档
-            const pdf = await pdfjsLib.getDocument(url).promise;
+            // const pdf = await pdfjsLib.getDocument(url).promise;
             await stateManager.init(pdf); // 将 PDF 文档存储到状态管理器中
             // 获取画布元素并渲染当前页面
             this.renderPage(stateManager.getCurrentPage());
