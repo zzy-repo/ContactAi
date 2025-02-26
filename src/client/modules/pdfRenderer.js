@@ -1,5 +1,4 @@
 import { stateManager } from './stateManager.js';
-import searchUtils from './searchUtils.js'
 import * as pdfjsLib from 'pdfjs-dist';
 
 export default class pdfRenderer {
@@ -30,30 +29,30 @@ export default class pdfRenderer {
     }
 
     static async highlightSearchText(canvasElement, page, searchText) {
-        const canvasContext = canvasElement.getContext('2d')
-        // 获取页面的文本内容
-        const textContent = await page.getTextContent()
-        const items = searchUtils.searchForTextInItems(textContent.items, searchText)
+        // const canvasContext = canvasElement.getContext('2d')
+        // // 获取页面的文本内容
+        // const textContent = await page.getTextContent()
+        // const items = searchUtils.searchForTextInItems(textContent.items, searchText)
 
-        // 遍历所有文本块
-        items.forEach(item => {// TODO:绘制高亮
-            // 获取文本坐标信息
-            const { transform } = item;
-            const [scaleX, skewY, skewX, scaleY, offsetX, offsetY] = transform;
+        // // 遍历所有文本块
+        // items.forEach(item => {// TODO:绘制高亮
+        //     // 获取文本坐标信息
+        //     const { transform } = item;
+        //     const [scaleX, skewY, skewX, scaleY, offsetX, offsetY] = transform;
 
-            // 获取画布坐标信息
-            const { left, top, right, bottom, width, height } = canvasElement.getBoundingClientRect();
+        //     // 获取画布坐标信息
+        //     const { left, top, right, bottom, width, height } = canvasElement.getBoundingClientRect();
 
-            // 计算文本坐标
-            const x = offsetX + right
-            const y = offsetY + bottom
+        //     // 计算文本坐标
+        //     const x = offsetX + right
+        //     const y = offsetY + bottom
 
-            // 绘制一个点
-            canvasContext.fillStyle = "red"; // 设置填充颜色
-            canvasContext.fillRect(x, y, 100, 100); // 绘制一个 5*5 的矩形
-            console.log({ x }, { y })
+        //     // 绘制一个点
+        //     canvasContext.fillStyle = "red"; // 设置填充颜色
+        //     canvasContext.fillRect(x, y, 100, 100); // 绘制一个 5*5 的矩形
+        //     console.log({ x }, { y })
 
-        });
+        // });
     }
 
     /**

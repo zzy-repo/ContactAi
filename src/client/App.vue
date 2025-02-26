@@ -1,7 +1,6 @@
 <script setup>
 import { onMounted } from 'vue';
 import pdfRenderer from './modules/pdfRenderer.js';
-import searchUtils from './modules/searchUtils.js';
 import { stateManager } from './modules/stateManager.js';
 onMounted(async () => {
 
@@ -33,10 +32,63 @@ onMounted(async () => {
 
 
     // 设置搜索功能
-    const searchInput = document.getElementById('search-input');
-    const searchButton = document.getElementById('search-btn');
+    const inputElement = document.getElementById('search-input');
+    const buttonElement = document.getElementById('search-btn');
     const sidebarElement = document.getElementById('sidebar')
-    searchUtils.setupSearch(searchInput, searchButton, sidebarElement, stateManager);
+    buttonElement.addEventListener('click', async () => {
+        const searchText = inputElement.value.trim();
+        if (!searchText) {
+            sidebarElement.innerHTML = ''; // 清空侧边栏内容
+            return;
+        }
+
+        stateManager.setSearchText(searchText);
+        pdfRenderer.renderPage(stateManager.getCurrentPage(), stateManager);
+
+        try {
+            const pdfDoc = stateManager.getPdfDoc(); // 假设 stateManager 提供获取 PDF 文档的方法
+            const numPages = pdfDoc.numPages;
+            let allItems = [];
+
+            // 内联 getAllItemsWithPageInfo 的逻辑
+            for (let pageNumber = 1; pageNumber <= numPages; pageNumber++) {
+                const page = await pdfDoc.getPage(pageNumber);
+                const { items } = await page.getTextContent();
+                const itemsWithPageInfo = items.map(item => ({
+                    ...item,
+                    pageNumber
+                }));
+                allItems.push(...itemsWithPageInfo);
+            }
+
+            // 内联 searchForTextInItems 的逻辑
+            const sideBarItems = allItems.flatMap(item =>
+                item.str.split(' ')
+                    .filter(word => word.toLowerCase().includes(searchText.toLowerCase()))
+                    .map(word => ({ str: word, transform: item.transform, pageNumber: item.pageNumber }))
+            );
+
+            // 清空侧边栏内容
+            sidebarElement.innerHTML = '';
+            const ulElement = document.createElement('ul');
+
+            sideBarItems.forEach(item => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `第${item.pageNumber}页: ${item.str}`;
+                listItem.classList.add('list-item');
+
+                listItem.addEventListener('click', () => {
+                    pdfRenderer.renderPage(item.pageNumber);
+                });
+
+                ulElement.appendChild(listItem);
+            });
+
+            sidebarElement.appendChild(ulElement);
+        } catch (error) {
+            console.error('Error fetching items from PDF:', error);
+        }
+    });
 })
 
 </script>

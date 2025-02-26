@@ -1,5 +1,3 @@
-import searchUtils from './searchUtils.js'
-
 /**
  * 状态管理器类，用于管理 PDF 查看器的各种状态信息。
  */
@@ -26,7 +24,26 @@ class StateManager {
     async init(pdfDoc) {
         this.setPdfDoc(pdfDoc)
         this.updatePageCount(pdfDoc.numPages)
-        this.setAllItems(await searchUtils.getAllItemsWithPageInfo(this.pdfDoc))
+        try {
+            const numPages = this.pdfDoc.numPages;
+            let allItems = [];
+
+            for (let pageNumber = 1; pageNumber <= numPages; pageNumber++) {
+                const page = await this.pdfDoc.getPage(pageNumber);
+                const { items } = await page.getTextContent();
+                const itemsWithPageInfo = items.map(item => ({
+                    ...item,
+                    pageNumber
+                }));
+
+                allItems.push(...itemsWithPageInfo);
+            }
+
+            this.setAllItems(allItems)
+        } catch (error) {
+            console.error('Error fetching items from PDF:', error);
+            throw error;
+        }
     }
 
     setPdfDoc(pdfDoc) { this.pdfDoc = pdfDoc; }
