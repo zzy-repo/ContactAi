@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
+import 'virtual:uno.css'
 
 const app = createApp(App)
 
@@ -9,7 +10,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.js',
     import.meta.url
-).toString();  // [3,9](@ref)
+).toString();
 
 // 导入 pinia
 import { createPinia } from 'pinia'
