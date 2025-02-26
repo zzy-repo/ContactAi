@@ -101,7 +101,7 @@ const setupPagination = () => {
 }
 
 // 搜索功能
-const results = ref([]); // 用响应式数据存储结果
+const listItems = ref([]); // 用响应式数据存储结果
 const setupSearch = () => {
     const sidebar = document.getElementById('sidebar')
     const input = document.getElementById('search-input')
@@ -115,7 +115,7 @@ const setupSearch = () => {
         renderPage(currentPage.value)
 
         // 构建搜索结果
-        results.value = allItems.value.flatMap(({ pageNumber, str, transform }) =>
+        listItems.value = allItems.value.flatMap(({ pageNumber, str, transform }) =>
             str.split(' ')
                 .filter(word => word.toLowerCase().includes(query.toLowerCase()))
                 .map(word => ({ pageNumber, str: word, transform }))
@@ -158,7 +158,7 @@ const handleSmartCherk = async () => {
         }
 
         // 页面展示
-        //console.log(data.content)
+        listItems.value = data.data
 
     }
     catch (err) {
@@ -245,11 +245,27 @@ onMounted(() => {
                 <canvas id="pdf-canvas"
                     class="flex-grow p-5 bg-white border-r border-[#e0e0e0] border-solid overflow-y-auto"></canvas>
                 <div id="sidebar" class="w-100 p-5 bg-white border-l border-[#e0e0e0] border-solid overflow-y-auto">
-                    <p v-if="isCherking">等待回答...</p>
+                    <p v-if="isCherking">等待回答中，请不要关掉或刷新页面...</p>
                     <ul class="p-0 m-0">
-                        <li v-for="result in results" :key="result.str" class="list-item"
-                            @click="renderPage(result.pageNumber)">
-                            第{{ result.pageNumber }}页: {{ result.str }}
+                        <li v-if="listItems && 'pageNumber' in listItems[0]"
+                            v-for="(item, index) in listItems" :key="index" @click="renderPage(item.pageNumber)"
+                            class="list-none px-4.5 py-3.5 border-b border-[#f0f4f8] text-sm text-[#4a5568] font-medium cursor-pointer select-none transition-all duration-300 hover:bg-[#f5f7fa] hover:text-[#007bff] hover:translate-x-1.25">
+                            <span>
+                                第{{ item.pageNumber }}页: {{ item.str }}
+                            </span>
+                        </li>
+
+                        <li v-if="listItems && 'rule' in listItems[0]" v-for="(item, index) in listItems"
+                            :key="index"
+                            class="px-6 py-4 border-b border-[#f0f4f8] text-sm text-[#4a5568] font-medium cursor-pointer select-none transition-all duration-300 hover:bg-[#f5f7fa] hover:text-[#007bff] hover:translate-x-2">
+                            <div class="flex flex-col space-y-1">
+                                <p class="text-base font-semibold text-[#2d3748]">{{ item.rule }}</p>
+                                <p class="text-sm text-[#718096]"
+                                    :class="item.qualification ? 'text-green-500' : 'text-red-500'">
+                                    {{ item.qualification ? '通过' : '未通过' }}
+                                </p>
+                                <p class="text-sm text-[#a0aec0] italic">{{ item.description }}</p>
+                            </div>
                         </li>
                     </ul>
                 </div>
