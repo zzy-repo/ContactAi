@@ -14,6 +14,7 @@ export const updateSidebar = async (items, sidebarElement) => {
     items.forEach(item => {
         const listItem = document.createElement('li');
         listItem.textContent = `第${item.pageNumber}页: ${item.str}`;
+        listItem.classList.add('list-item'); 
         
         // 为每个 li 添加点击事件
         listItem.addEventListener('click', () => {
