@@ -1,22 +1,22 @@
 <script setup>
-import PaginationUtils from './modules/paginationUtils.js';
-import pdfRenderer from './modules/pdfRenderer.js';
-import searchUtils from './modules/searchUtils.js';
-import { stateManager } from './modules/stateManager.js';
+// import PaginationUtils from './modules/paginationUtils.js';
+// import pdfRenderer from './modules/pdfRenderer.js';
+// import searchUtils from './modules/searchUtils.js';
+// import { stateManager } from './modules/stateManager.js';
 
-stateManager.setElement(document.getElementById('pdf-canvas'))
+// stateManager.setElement(document.getElementById('pdf-canvas'))
 
-// 初始化 PDF 加载
-await pdfRenderer.loadPdf('http://localhost:8080/data/output/sample.pdf');
+// // 初始化 PDF 加载
+// await pdfRenderer.loadPdf('http://localhost:8080/data/output/sample.pdf');
 
-// 设置分页导航
-PaginationUtils.setupPagination(['prev', 'next'], stateManager);
+// // 设置分页导航
+// PaginationUtils.setupPagination(['prev', 'next'], stateManager);
 
-// 设置搜索功能
-const searchInput = document.getElementById('search-input');
-const searchButton = document.getElementById('search-btn');
-const sidebarElement = document.getElementById('sidebar')
-searchUtils.setupSearch(searchInput, searchButton, sidebarElement, stateManager);
+// // 设置搜索功能
+// const searchInput = document.getElementById('search-input');
+// const searchButton = document.getElementById('search-btn');
+// const sidebarElement = document.getElementById('sidebar')
+// searchUtils.setupSearch(searchInput, searchButton, sidebarElement, stateManager);
 </script>
 
 <template>
