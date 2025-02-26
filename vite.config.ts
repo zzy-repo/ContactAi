@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 
 // 加载 .env 文件
 dotenv.config();
+const PORT = process.env.SERVER_PORT
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -12,8 +13,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: `http://localhost:${process.env.SERVER_PORT}`,
+        target: `http://localhost:${PORT}`,
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

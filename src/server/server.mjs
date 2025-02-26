@@ -2,9 +2,9 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors'
 import dotenv from 'dotenv';
-import { fileURLToPath } from 'url'; // 新增：解决 ESM 模块下 __dirname 的兼容问题
+import { fileURLToPath } from 'url';
 
-// 获取当前文件的绝对路径（ESM 模块替代 __dirname）
+// 获取当前文件的绝对路径，找到public的位置
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const __publicpath = path.join(__dirname, '..', '..', 'public')

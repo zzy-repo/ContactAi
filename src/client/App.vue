@@ -1,4 +1,6 @@
 <script setup>
+import { onMounted } from 'vue';
+
 // import PaginationUtils from './modules/paginationUtils.js';
 // import pdfRenderer from './modules/pdfRenderer.js';
 // import searchUtils from './modules/searchUtils.js';
@@ -17,6 +19,22 @@
 // const searchButton = document.getElementById('search-btn');
 // const sidebarElement = document.getElementById('sidebar')
 // searchUtils.setupSearch(searchInput, searchButton, sidebarElement, stateManager);
+
+
+onMounted(() => {
+    // 测试 /api/sample.pdf 是否可以找到
+    fetch('/api/sample.pdf')
+        .then(response => {
+            if (response.ok) {
+                console.log('File found:', response.url);
+            } else {
+                console.error('File not found:', response.status, response.statusText);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+        });
+})
 </script>
 
 <template>
