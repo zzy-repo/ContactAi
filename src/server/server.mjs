@@ -11,7 +11,7 @@ const app = express();
 
 // 设置静态文件服务，指向 public 目录
 app.use(express.static(path.join('..', '..', 'public')));
-app.use(cors)
+app.use(cors())
 
 // 启动服务器
 app.listen(PORT, () => {
