@@ -9,7 +9,7 @@ import { onMounted } from 'vue';
 // stateManager.setElement(document.getElementById('pdf-canvas'))
 
 // // 初始化 PDF 加载
-// await pdfRenderer.loadPdf('http://localhost:8080/data/output/sample.pdf');
+// await pdfRenderer.loadPdf('/api/sample.pdf');
 
 // // 设置分页导航
 // PaginationUtils.setupPagination(['prev', 'next'], stateManager);
