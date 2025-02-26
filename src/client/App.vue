@@ -14,7 +14,8 @@ const {
     zoomLevel,
     totalPages,
     element,
-    allItems
+    allItems,
+    docx_content
 } = storeToRefs(store)
 
 // 修改后的 renderPage 方法
@@ -55,23 +56,8 @@ const renderPage = async (pageNumber) => {
             intent: 'display' // 添加渲染意图参数
         }).promise
 
-        // 高亮处理（添加边界校验）
+        // TODO:高亮处理
         if (searchText.value) {
-            //   const textContent = await page.getTextContent()
-            //   textContent.items
-            //     .filter(item => item.str?.toLowerCase().includes(searchText.value.toLowerCase()))
-            //     .forEach(({ transform, str }) => {
-            //       if (!transform || transform.length < 6) return
-
-            //       const [,,, scaleY, x, y] = transform
-            //       const textWidth = ctx.measureText(str).width
-
-            //       // 安全绘制高亮
-            //       if (textWidth > 0 && scaleY > 0) {
-            //         ctx.fillStyle = 'rgba(255, 255, 0, 0.5)'
-            //         ctx.fillRect(x, y - scaleY, textWidth, scaleY)
-            //       }
-            //     })
         }
 
         // 更新状态
@@ -140,6 +126,19 @@ const setupSearch = () => {
     }
 }
 
+
+const setupSmartCherk = async () => {
+    const handleSmartCherk = () => {
+        console.log(docx_content.value)
+    }
+
+    document.getElementById('SmartCherk-btn').addEventListener('click', handleSmartCherk)
+    return () => {
+        document.getElementById('SmartCherk-btn').removeEventListener('click', handleSmartCherk)
+    }
+
+}
+
 const loadPdf = async (url, canvasElementId) => {
     store.element = document.getElementById('pdf-canvas')
     try {
@@ -155,19 +154,35 @@ const loadPdf = async (url, canvasElementId) => {
     }
 }
 
+const setDocument = async () => {
+    const response = await fetch('/api/document'); // 替换为实际的API URL
+    if (!response.ok) {
+        throw new Error('Network response was not ok ' + response.statusText);
+    }
+    const data = await response.json();
+    if (!data.success) {
+        throw new Error('Failed to fetch document:', data.error.message);
+    }
+    docx_content.value = data.content
+
+}
+
 // 初始化
 onMounted(async () => {
     loadPdf('/api/sample.pdf', 'pdf-canvas')
+    setDocument()
 })
 
 // 添加事件监听器
 onMounted(() => {
     const cleanPagination = setupPagination() // 设置分页事件监听器
     const cleanSearch = setupSearch() // 设置搜索事件监听器
+    const cleanSmartCherk = setupSmartCherk() // 设置搜索事件监听器
 
     return () => {
-        cleanPagination() // 清理分页事件监听器
-        cleanSearch() // 清理搜索事件监听器
+        cleanPagination()
+        cleanSearch()
+        cleanSmartCherk()
     }
 })
 
@@ -177,22 +192,22 @@ onMounted(() => {
     <div id="viewerContainer" class="w-[60%] mx-auto my-5 overflow-hidden bg-gradient-to-b from-white to-[#f5f7fa]">
         <div id="viewer" class="flex flex-col overflow-hidden">
             <!-- 工具栏 -->
-            <div
-                class="toolbar bg-white p-2.5 border-b border-[#e0e0e0] border-solid flex items-center justify-between">
-                <input type="text" id="search-input" placeholder="Search..." class="search-input" />
-                <button id="search-btn" class="toolbar-button">Search</button>
-                <button id="prev" class="toolbar-button">Previous</button>
-                <div class="page flex items-center gap-1 text-[#333] text-sm">
+            <div class="bg-white p-2.5 border-b border-[#e0e0e0] border-solid flex items-center justify-between">
+                <button id="prev" class="toolbar-button">上一页</button>
+                <div class="page flex items-center content-center gap-1 text-[#333] text-sm">
                     <span id="page_num">{{ currentPage }}</span>/<span id="page_count">{{ totalPages }}</span>
                 </div>
-                <button id="next" class="toolbar-button">Next</button>
+                <button id="next" class="toolbar-button">下一页</button>
+                <input type="text" id="search-input" placeholder="Search..." class="search-input" />
+                <button id="search-btn" class="toolbar-button">搜索</button>
+                <button id="SmartCherk-btn" class="toolbar-button">智能审查</button>
             </div>
 
             <!-- 内容区域 -->
             <div class="content-container flex flex-grow">
                 <canvas id="pdf-canvas"
                     class="flex-grow p-5 bg-white border-r border-[#e0e0e0] border-solid overflow-y-auto"></canvas>
-                <div id="sidebar" class="flex-grow p-5 bg-white border-l border-[#e0e0e0] border-solid overflow-y-auto">
+                <div id="sidebar" class="w-100 p-5 bg-white border-l border-[#e0e0e0] border-solid overflow-y-auto">
                     <ul class="p-0 m-0">
                         <li v-for="result in results" :key="result.str" class="list-item"
                             @click="renderPage(result.pageNumber)">

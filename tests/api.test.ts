@@ -22,4 +22,25 @@ describe('API 真实请求测试', () => {
       
     expect(pdfHeader).toMatch(/^%PDF/); // 验证 PDF 文件头标识[9](@ref)
   });
+
+  test('正常响应测试', async () => {
+    // 执行请求
+    const response = await fetch('http://localhost:5173/api/document')
+
+    // 2. 验证基础响应状态
+    expect(response.status).toBe(200);
+    expect(response.ok).toBeTruthy(); // 验证 HTTP 状态码 2xx[7](@ref)
+
+    // 验证响应结构
+    expect(response.body).toMatchObject({
+      success: true,
+      content: expect.any(String),
+      metadata: {
+        source: expect.stringMatching(/\.docx$/),
+        timestamp: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+      }
+    })
+
+    console.log(response)
+  });
 });

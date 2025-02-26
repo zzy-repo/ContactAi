@@ -1,6 +1,6 @@
 // stores/pdfViewer.js
 import { defineStore } from 'pinia'
-import { ref, reactive,shallowRef } from 'vue'
+import { ref, reactive, shallowRef } from 'vue'
 
 export const usePdfViewerStore = defineStore('pdfViewer', () => {
     // State（使用组合式 API）
@@ -14,6 +14,7 @@ export const usePdfViewerStore = defineStore('pdfViewer', () => {
     const totalPages = ref(0)
     const element = ref(null)
     const allItems = reactive([]) // 使用 reactive 保持数组响应性
+    const docx_content = ref('')
 
     // Actions（处理异步操作和复杂逻辑）
     const init = async (pdfDocument) => {
@@ -70,6 +71,7 @@ export const usePdfViewerStore = defineStore('pdfViewer', () => {
         totalPages,
         element,
         allItems,
+        docx_content,
 
         // Actions
         init,
