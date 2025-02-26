@@ -2,6 +2,7 @@
 import { onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePdfViewerStore } from './stores/pdfViewer'
+import { ref } from 'vue'
 
 const store = usePdfViewerStore()
 const {
@@ -112,9 +113,11 @@ const setupPagination = () => {
 }
 
 // 搜索功能
+const results = ref([]); // 用响应式数据存储结果
 const setupSearch = () => {
     const sidebar = document.getElementById('sidebar')
     const input = document.getElementById('search-input')
+
 
     const handleSearch = async () => {
         const query = input.value.trim()
@@ -124,18 +127,11 @@ const setupSearch = () => {
         renderPage(currentPage.value)
 
         // 构建搜索结果
-        const results = allItems.value.flatMap(({ pageNumber, str, transform }) =>
+        results.value = allItems.value.flatMap(({ pageNumber, str, transform }) =>
             str.split(' ')
                 .filter(word => word.toLowerCase().includes(query.toLowerCase()))
                 .map(word => ({ pageNumber, str: word, transform }))
         )
-
-        // 渲染结果列表
-        sidebar.innerHTML = `<ul>${results.map(({ pageNumber, str }) => `
-      <li class="list-item" @click="renderPage(${pageNumber})">
-        第${pageNumber}页: ${str}
-      </li>
-    `).join('')}</ul>`
     }
 
     document.getElementById('search-btn').addEventListener('click', handleSearch)
@@ -198,6 +194,10 @@ onMounted(() => {
                     class="flex-grow p-5 bg-white border-r border-[#e0e0e0] border-solid overflow-y-auto"></canvas>
                 <div id="sidebar" class="flex-grow p-5 bg-white border-l border-[#e0e0e0] border-solid overflow-y-auto">
                     <ul class="p-0 m-0">
+                        <li v-for="result in results" :key="result.str" class="list-item"
+                            @click="renderPage(result.pageNumber)">
+                            第{{ result.pageNumber }}页: {{ result.str }}
+                        </li>
                     </ul>
                 </div>
             </div>
