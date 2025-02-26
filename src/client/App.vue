@@ -1,175 +1,185 @@
 <script setup>
-import { onMounted } from 'vue';
-import { stateManager } from './modules/stateManager.js';
+import { onMounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { usePdfViewerStore } from './stores/pdfViewer'
 
+const store = usePdfViewerStore()
+const {
+  pdfDoc,
+  currentPage,
+  isPageRendering,
+  pendingPageNumber,
+  searchText,
+  zoomLevel,
+  totalPages,
+  element,
+  allItems
+} = storeToRefs(store)
+
+// 修改后的 renderPage 方法
 const renderPage = async (pageNumber) => {
-    try {
-        // 设置渲染状态为 true
-        stateManager.setIsPageRendering(true);
-
-        // 清除画布内容
-        const canvasElement = stateManager.getElement();
-        const canvasContext = canvasElement.getContext('2d');
-        canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-        // 获取 PDF 文档和页面
-        const pdfDoc = stateManager.getPdfDoc();
-        const page = await pdfDoc.getPage(pageNumber);
-
-        // 获取视口信息并设置画布尺寸
-        const viewport = page.getViewport({ scale: stateManager.getZoomLevel() });
-        [canvasElement.height, canvasElement.width] = [viewport.height, viewport.width];
-
-        // 渲染页面
-        const renderContext = { canvasContext, viewport };
-        await page.render(renderContext).promise;
-
-        // 如果有搜索文本，则高亮显示
-        const searchText = stateManager.getSearchText();
-        if (searchText) {
-            // 获取页面的文本内容
-            const textContent = await page.getTextContent();
-            const items = textContent.items
-                .flatMap(item =>
-                    item.str.split(' ')
-                        .filter(word => word.toLowerCase().includes(searchText.toLowerCase()))
-                        .map(word => ({ str: word, transform: item.transform }))
-                );
-
-            // 遍历所有匹配项并绘制高亮
-            items.forEach(item => {
-                const { transform } = item;
-                const [scaleX, skewY, skewX, scaleY, offsetX, offsetY] = transform;
-
-                // 绘制高亮区域（示例逻辑）
-                canvasContext.fillStyle = "rgba(255, 255, 0, 0.5)"; // 半透明黄色
-                canvasContext.fillRect(offsetX, offsetY, 100, 10); // 示例高亮区域
-            });
-        }
-
-        // 更新页面显示
-        stateManager.updatePageDisplay(pageNumber);
-    } catch (error) {
-        console.error('Error rendering PDF page:', error);
-    } finally {
-        // 解除渲染状态
-        stateManager.setIsPageRendering(false);
-
-        // 如果有待渲染的页码，则立即渲染该页码
-        if (stateManager.getPendingPageNumber()) {
-            renderPage(stateManager.getPendingPageNumber());
-            stateManager.clearPendingPageNumber(); // 清除待渲染页码
-        }
+  try {
+    // 添加前置校验
+    if (!element.value || !pdfDoc.value) {
+      throw new Error('画布或文档未初始化')
     }
+
+    isPageRendering.value = true
+    const canvas = element.value
+    const ctx = canvas.getContext('2d')
+
+    // 安全清空画布
+    if (canvas.width > 0 && canvas.height > 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+    }
+
+    // 获取页面并校验
+    const page = await store.getCurrentPageItem(pageNumber)
+    if (!page?.getViewport) {
+      throw new Error('获取页面对象失败')
+    }
+
+    // 校验缩放级别
+    const safeZoom = Math.max(0.1, Math.min(zoomLevel.value, 5)) || 1
+    const viewport = page.getViewport({ scale: safeZoom })
+
+    // 设置画布尺寸
+    canvas.height = viewport.height
+    canvas.width = viewport.width
+
+    // 执行渲染
+    await page.render({ 
+      canvasContext: ctx,
+      viewport,
+      intent: 'display' // 添加渲染意图参数
+    }).promise
+
+    // 高亮处理（添加边界校验）
+    if (searchText.value) {
+    //   const textContent = await page.getTextContent()
+    //   textContent.items
+    //     .filter(item => item.str?.toLowerCase().includes(searchText.value.toLowerCase()))
+    //     .forEach(({ transform, str }) => {
+    //       if (!transform || transform.length < 6) return
+          
+    //       const [,,, scaleY, x, y] = transform
+    //       const textWidth = ctx.measureText(str).width
+          
+    //       // 安全绘制高亮
+    //       if (textWidth > 0 && scaleY > 0) {
+    //         ctx.fillStyle = 'rgba(255, 255, 0, 0.5)'
+    //         ctx.fillRect(x, y - scaleY, textWidth, scaleY)
+    //       }
+    //     })
+    }
+
+    // 更新状态
+    currentPage.value = pageNumber
+  } catch (error) {
+    console.error('详细错误信息:', {
+      error,
+      pageNumber,
+      zoomLevel: zoomLevel.value,
+      pdfReady: !!pdfDoc.value,
+      canvasReady: !!element.value
+    })
+  } finally {
+    isPageRendering.value = false
+    // 添加 pending 页码校验
+    if (pendingPageNumber.value !== null && pendingPageNumber.value !== currentPage.value) {
+      renderPage(pendingPageNumber.value)
+      pendingPageNumber.value = null
+    }
+  }
 }
 
+// PDF 初始化
 onMounted(async () => {
-
-    stateManager.setElement(document.getElementById('pdf-canvas'))
-
-    // 初始化 PDF 加载
-    try {
-        // 通过 fetch 获取 PDF 数据，再传递给 pdfjsLib
-        const response = await fetch('/api/sample.pdf'); // 相对路径会被 Vite 代理转发
-        if (!response.ok) {
-            throw new Error('Failed to fetch PDF');
-        }
-        const arrayBuffer = await response.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-        // 初始化状态管理器并将 PDF 文档存储到状态管理器中
-        await stateManager.init(pdf);
-
-        // 渲染当前页面
-        renderPage(stateManager.getCurrentPage());
-    } catch (error) {
-        // 捕获加载错误并提示用户
-        console.error('Failed to load PDF:', error);
-        alert('无法加载 PDF 文件，请检查网络连接或文件路径。');
-    }
-
-    // 设置分页导航
-    ['prev', 'next'].forEach(buttonId => {
-        document.getElementById(buttonId).addEventListener('click', () => {
-            const isPrev = buttonId === 'prev';
-            const currentPage = stateManager.getCurrentPage();
-            const totalPages = stateManager.getTotalPages();
-
-            if ((currentPage <= 1 && isPrev) || (currentPage >= totalPages && !isPrev)) return;
-
-            const newPage = isPrev ? currentPage - 1 : currentPage + 1;
-            stateManager.setCurrentPage(newPage);
-            stateManager.clearPendingPageNumber();
-
-            if (stateManager.getIsPageRendering()) {
-                stateManager.setPendingPageNumber(newPage);
-            } else {
-                renderPage(newPage);
-            }
-        });
-    });
-
-
-    // 设置搜索功能
-    const inputElement = document.getElementById('search-input');
-    const buttonElement = document.getElementById('search-btn');
-    const sidebarElement = document.getElementById('sidebar')
-    buttonElement.addEventListener('click', async () => {
-        const searchText = inputElement.value.trim();
-        if (!searchText) {
-            sidebarElement.innerHTML = ''; // 清空侧边栏内容
-            return;
-        }
-
-        stateManager.setSearchText(searchText);
-        renderPage(stateManager.getCurrentPage(), stateManager);
-
-        try {
-            const pdfDoc = stateManager.getPdfDoc(); // 假设 stateManager 提供获取 PDF 文档的方法
-            const numPages = pdfDoc.numPages;
-            let allItems = [];
-
-            // 内联 getAllItemsWithPageInfo 的逻辑
-            for (let pageNumber = 1; pageNumber <= numPages; pageNumber++) {
-                const page = await pdfDoc.getPage(pageNumber);
-                const { items } = await page.getTextContent();
-                const itemsWithPageInfo = items.map(item => ({
-                    ...item,
-                    pageNumber
-                }));
-                allItems.push(...itemsWithPageInfo);
-            }
-
-            // 内联 searchForTextInItems 的逻辑
-            const sideBarItems = allItems.flatMap(item =>
-                item.str.split(' ')
-                    .filter(word => word.toLowerCase().includes(searchText.toLowerCase()))
-                    .map(word => ({ str: word, transform: item.transform, pageNumber: item.pageNumber }))
-            );
-
-            // 清空侧边栏内容
-            sidebarElement.innerHTML = '';
-            const ulElement = document.createElement('ul');
-
-            sideBarItems.forEach(item => {
-                const listItem = document.createElement('li');
-                listItem.textContent = `第${item.pageNumber}页: ${item.str}`;
-                listItem.classList.add('list-item');
-
-                listItem.addEventListener('click', () => {
-                    renderPage(item.pageNumber);
-                });
-
-                ulElement.appendChild(listItem);
-            });
-
-            sidebarElement.appendChild(ulElement);
-        } catch (error) {
-            console.error('Error fetching items from PDF:', error);
-        }
-    });
+  store.element = document.getElementById('pdf-canvas')
+  
+  try {
+    const response = await fetch('/api/sample.pdf')
+    const pdf = await pdfjsLib.getDocument({
+      data: await response.arrayBuffer()
+    }).promise
+    
+    await store.init(pdf)
+    renderPage(currentPage.value)
+  } catch (error) {
+    alert(`PDF加载失败: ${error.message}`)
+  }
 })
 
+// 分页控制逻辑
+const setupPagination = () => {
+  const handlers = {
+    prev: () => !isPageRendering.value && currentPage.value > 1 && 
+      (currentPage.value--, renderPage(currentPage.value)),
+    next: () => !isPageRendering.value && currentPage.value < totalPages.value && 
+      (currentPage.value++, renderPage(currentPage.value))
+  }
+
+  document.getElementById('prev').addEventListener('click', handlers.prev)
+  document.getElementById('next').addEventListener('click', handlers.next)
+  
+  return () => {
+    document.getElementById('prev').removeEventListener('click', handlers.prev)
+    document.getElementById('next').removeEventListener('click', handlers.next)
+  }
+}
+
+// 搜索功能
+const setupSearch = () => {
+  const sidebar = document.getElementById('sidebar')
+  const input = document.getElementById('search-input')
+  
+  const handleSearch = async () => {
+    const query = input.value.trim()
+    if (!query) return sidebar.innerHTML = ''
+    
+    searchText.value = query
+    renderPage(currentPage.value)
+    
+    // 构建搜索结果
+    const results = allItems.value.flatMap(({ pageNumber, str, transform }) => 
+      str.split(' ')
+        .filter(word => word.toLowerCase().includes(query.toLowerCase()))
+        .map(word => ({ pageNumber, str: word, transform }))
+    )
+    
+    // 渲染结果列表
+    sidebar.innerHTML = `<ul>${results.map(({ pageNumber, str }) => `
+      <li class="list-item" @click="renderPage(${pageNumber})">
+        第${pageNumber}页: ${str}
+      </li>
+    `).join('')}</ul>`
+  }
+
+  document.getElementById('search-btn').addEventListener('click', handleSearch)
+  return () => {
+    document.getElementById('search-btn').removeEventListener('click', handleSearch)
+  }
+}
+
+// 生命周期管理
+onMounted(() => {
+  const cleanPagination = setupPagination()
+  const cleanSearch = setupSearch()
+  
+  return () => {
+    cleanPagination()
+    cleanSearch()
+  }
+})
+
+// 响应式监听
+watch(currentPage, (val) => {
+  document.getElementById('page_num').textContent = val
+})
+
+watch(totalPages, (val) => {
+  document.getElementById('page_count').textContent = val
+})
 </script>
 
 <template>
