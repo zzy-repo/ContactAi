@@ -1,13 +1,92 @@
 <script setup>
 import { onMounted } from 'vue';
-import pdfRenderer from './modules/pdfRenderer.js';
 import { stateManager } from './modules/stateManager.js';
+
+const renderPage = async (pageNumber) => {
+    try {
+        // 设置渲染状态为 true
+        stateManager.setIsPageRendering(true);
+
+        // 清除画布内容
+        const canvasElement = stateManager.getElement();
+        const canvasContext = canvasElement.getContext('2d');
+        canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+        // 获取 PDF 文档和页面
+        const pdfDoc = stateManager.getPdfDoc();
+        const page = await pdfDoc.getPage(pageNumber);
+
+        // 获取视口信息并设置画布尺寸
+        const viewport = page.getViewport({ scale: stateManager.getZoomLevel() });
+        [canvasElement.height, canvasElement.width] = [viewport.height, viewport.width];
+
+        // 渲染页面
+        const renderContext = { canvasContext, viewport };
+        await page.render(renderContext).promise;
+
+        // 如果有搜索文本，则高亮显示
+        const searchText = stateManager.getSearchText();
+        if (searchText) {
+            // 获取页面的文本内容
+            const textContent = await page.getTextContent();
+            const items = textContent.items
+                .flatMap(item =>
+                    item.str.split(' ')
+                        .filter(word => word.toLowerCase().includes(searchText.toLowerCase()))
+                        .map(word => ({ str: word, transform: item.transform }))
+                );
+
+            // 遍历所有匹配项并绘制高亮
+            items.forEach(item => {
+                const { transform } = item;
+                const [scaleX, skewY, skewX, scaleY, offsetX, offsetY] = transform;
+
+                // 绘制高亮区域（示例逻辑）
+                canvasContext.fillStyle = "rgba(255, 255, 0, 0.5)"; // 半透明黄色
+                canvasContext.fillRect(offsetX, offsetY, 100, 10); // 示例高亮区域
+            });
+        }
+
+        // 更新页面显示
+        stateManager.updatePageDisplay(pageNumber);
+    } catch (error) {
+        console.error('Error rendering PDF page:', error);
+    } finally {
+        // 解除渲染状态
+        stateManager.setIsPageRendering(false);
+
+        // 如果有待渲染的页码，则立即渲染该页码
+        if (stateManager.getPendingPageNumber()) {
+            renderPage(stateManager.getPendingPageNumber());
+            stateManager.clearPendingPageNumber(); // 清除待渲染页码
+        }
+    }
+}
+
 onMounted(async () => {
 
     stateManager.setElement(document.getElementById('pdf-canvas'))
 
     // 初始化 PDF 加载
-    await pdfRenderer.loadPdf('/api/sample.pdf');
+    try {
+        // 通过 fetch 获取 PDF 数据，再传递给 pdfjsLib
+        const response = await fetch('/api/sample.pdf'); // 相对路径会被 Vite 代理转发
+        if (!response.ok) {
+            throw new Error('Failed to fetch PDF');
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        // 初始化状态管理器并将 PDF 文档存储到状态管理器中
+        await stateManager.init(pdf);
+
+        // 渲染当前页面
+        renderPage(stateManager.getCurrentPage());
+    } catch (error) {
+        // 捕获加载错误并提示用户
+        console.error('Failed to load PDF:', error);
+        alert('无法加载 PDF 文件，请检查网络连接或文件路径。');
+    }
 
     // 设置分页导航
     ['prev', 'next'].forEach(buttonId => {
@@ -25,7 +104,7 @@ onMounted(async () => {
             if (stateManager.getIsPageRendering()) {
                 stateManager.setPendingPageNumber(newPage);
             } else {
-                pdfRenderer.renderPage(newPage);
+                renderPage(newPage);
             }
         });
     });
@@ -43,7 +122,7 @@ onMounted(async () => {
         }
 
         stateManager.setSearchText(searchText);
-        pdfRenderer.renderPage(stateManager.getCurrentPage(), stateManager);
+        renderPage(stateManager.getCurrentPage(), stateManager);
 
         try {
             const pdfDoc = stateManager.getPdfDoc(); // 假设 stateManager 提供获取 PDF 文档的方法
@@ -78,7 +157,7 @@ onMounted(async () => {
                 listItem.classList.add('list-item');
 
                 listItem.addEventListener('click', () => {
-                    pdfRenderer.renderPage(item.pageNumber);
+                    renderPage(item.pageNumber);
                 });
 
                 ulElement.appendChild(listItem);
