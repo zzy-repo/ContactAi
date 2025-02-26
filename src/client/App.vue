@@ -1,6 +1,5 @@
 <script setup>
 import { onMounted } from 'vue';
-import PaginationUtils from './modules/paginationUtils.js';
 import pdfRenderer from './modules/pdfRenderer.js';
 import searchUtils from './modules/searchUtils.js';
 import { stateManager } from './modules/stateManager.js';
@@ -12,7 +11,26 @@ onMounted(async () => {
     await pdfRenderer.loadPdf('/api/sample.pdf');
 
     // 设置分页导航
-    PaginationUtils.setupPagination(['prev', 'next'], stateManager);
+    ['prev', 'next'].forEach(buttonId => {
+        document.getElementById(buttonId).addEventListener('click', () => {
+            const isPrev = buttonId === 'prev';
+            const currentPage = stateManager.getCurrentPage();
+            const totalPages = stateManager.getTotalPages();
+
+            if ((currentPage <= 1 && isPrev) || (currentPage >= totalPages && !isPrev)) return;
+
+            const newPage = isPrev ? currentPage - 1 : currentPage + 1;
+            stateManager.setCurrentPage(newPage);
+            stateManager.clearPendingPageNumber();
+
+            if (stateManager.getIsPageRendering()) {
+                stateManager.setPendingPageNumber(newPage);
+            } else {
+                pdfRenderer.renderPage(newPage);
+            }
+        });
+    });
+
 
     // 设置搜索功能
     const searchInput = document.getElementById('search-input');
@@ -43,10 +61,7 @@ onMounted(async () => {
                 <canvas id="pdf-canvas"
                     class="flex-grow p-5 bg-white border-r border-[#e0e0e0] border-solid overflow-y-auto"></canvas>
                 <div id="sidebar" class="flex-grow p-5 bg-white border-l border-[#e0e0e0] border-solid overflow-y-auto">
-                    <ul class="list-none p-0 m-0">
-                        <li class="list-item" v-for="index in [1, 2, 3]" :key="index">
-                            Item {{ index }}
-                        </li>
+                    <ul class="p-0 m-0">
                     </ul>
                 </div>
             </div>

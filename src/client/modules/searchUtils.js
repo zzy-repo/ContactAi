@@ -1,6 +1,5 @@
 // searchUtils.js
 import pdfRenderer from './pdfRenderer.js';
-import { updateSidebar } from './updateSidebar.js';
 
 export default class searchUtils {
     /**
@@ -15,7 +14,7 @@ export default class searchUtils {
             // 在当前页面上高亮内容
             const searchText = inputElement.value.trim();
             if (!searchText) {
-                updateSidebar('', sidebarElement);
+                this.updateSidebar('', sidebarElement);
                 return
             }
             stateManager.setSearchText(searchText);
@@ -23,7 +22,7 @@ export default class searchUtils {
             // 从所有页面的items中查找text项，并显示在sidebarElement上
             const allItems = stateManager.getAllItems();
             const sideBarItems = this.searchForTextInItems(allItems, searchText);
-            updateSidebar(sideBarItems, sidebarElement);
+            this.updateSidebar(sideBarItems, sidebarElement);
         });
     }
 
@@ -81,4 +80,33 @@ export default class searchUtils {
                 .map(word => ({ str: word, transform: item.transform, pageNumber: item.pageNumber }))
         );
     }
+
+    /**
+     * 更新侧边栏显示所有页面的文本内容及其变换信息。
+     * @param {Object} stateManager - 状态管理器对象，提供 `getPdfDoc` 方法。
+     * @param {HTMLElement} sidebarElement - 侧边栏元素，用于显示文本内容。
+     */
+    static async updateSidebar(items, sidebarElement) {
+        // 清空侧边栏内容
+        sidebarElement.innerHTML = '';
+        // 创建 ul 元素
+        const ulElement = document.createElement('ul');
+        // 遍历所有 items 并添加到侧边栏
+        items.forEach(item => {
+            const listItem = document.createElement('li');
+            listItem.textContent = `第${item.pageNumber}页: ${item.str}`;
+            listItem.classList.add('list-item');
+
+            // 为每个 li 添加点击事件
+            listItem.addEventListener('click', () => {
+                // 调用 renderPage 方法，传入当前页码
+                pdfRenderer.renderPage(item.pageNumber);
+            });
+
+            ulElement.appendChild(listItem);
+        });
+        // 将 ul 元素添加到侧边栏
+        sidebarElement.appendChild(ulElement);
+    };
 }
+
