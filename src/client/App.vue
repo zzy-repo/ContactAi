@@ -5,181 +5,176 @@ import { usePdfViewerStore } from './stores/pdfViewer'
 
 const store = usePdfViewerStore()
 const {
-  pdfDoc,
-  currentPage,
-  isPageRendering,
-  pendingPageNumber,
-  searchText,
-  zoomLevel,
-  totalPages,
-  element,
-  allItems
+    pdfDoc,
+    currentPage,
+    isPageRendering,
+    pendingPageNumber,
+    searchText,
+    zoomLevel,
+    totalPages,
+    element,
+    allItems
 } = storeToRefs(store)
 
 // 修改后的 renderPage 方法
 const renderPage = async (pageNumber) => {
-  try {
-    // 添加前置校验
-    if (!element.value || !pdfDoc.value) {
-      throw new Error('画布或文档未初始化')
+    try {
+        // 添加前置校验
+        if (!element.value || !pdfDoc.value) {
+            throw new Error('画布或文档未初始化')
+        }
+
+        isPageRendering.value = true
+        const canvas = element.value
+        const ctx = canvas.getContext('2d')
+
+        // 安全清空画布
+        if (canvas.width > 0 && canvas.height > 0) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+        }
+
+        // 获取页面并校验
+        const page = await store.getCurrentPageItem(pageNumber)
+        if (!page?.getViewport) {
+            throw new Error('获取页面对象失败')
+        }
+
+        // 校验缩放级别
+        const safeZoom = Math.max(0.1, Math.min(zoomLevel.value, 5)) || 1
+        const viewport = page.getViewport({ scale: safeZoom })
+
+        // 设置画布尺寸
+        canvas.height = viewport.height
+        canvas.width = viewport.width
+
+        // 执行渲染
+        await page.render({
+            canvasContext: ctx,
+            viewport,
+            intent: 'display' // 添加渲染意图参数
+        }).promise
+
+        // 高亮处理（添加边界校验）
+        if (searchText.value) {
+            //   const textContent = await page.getTextContent()
+            //   textContent.items
+            //     .filter(item => item.str?.toLowerCase().includes(searchText.value.toLowerCase()))
+            //     .forEach(({ transform, str }) => {
+            //       if (!transform || transform.length < 6) return
+
+            //       const [,,, scaleY, x, y] = transform
+            //       const textWidth = ctx.measureText(str).width
+
+            //       // 安全绘制高亮
+            //       if (textWidth > 0 && scaleY > 0) {
+            //         ctx.fillStyle = 'rgba(255, 255, 0, 0.5)'
+            //         ctx.fillRect(x, y - scaleY, textWidth, scaleY)
+            //       }
+            //     })
+        }
+
+        // 更新状态
+        currentPage.value = pageNumber
+    } catch (error) {
+        console.error('详细错误信息:', {
+            error,
+            pageNumber,
+            zoomLevel: zoomLevel.value,
+            pdfReady: !!pdfDoc.value,
+            canvasReady: !!element.value
+        })
+    } finally {
+        isPageRendering.value = false
+        // 添加 pending 页码校验
+        if (pendingPageNumber.value !== null && pendingPageNumber.value !== currentPage.value) {
+            renderPage(pendingPageNumber.value)
+            pendingPageNumber.value = null
+        }
     }
-
-    isPageRendering.value = true
-    const canvas = element.value
-    const ctx = canvas.getContext('2d')
-
-    // 安全清空画布
-    if (canvas.width > 0 && canvas.height > 0) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-    }
-
-    // 获取页面并校验
-    const page = await store.getCurrentPageItem(pageNumber)
-    if (!page?.getViewport) {
-      throw new Error('获取页面对象失败')
-    }
-
-    // 校验缩放级别
-    const safeZoom = Math.max(0.1, Math.min(zoomLevel.value, 5)) || 1
-    const viewport = page.getViewport({ scale: safeZoom })
-
-    // 设置画布尺寸
-    canvas.height = viewport.height
-    canvas.width = viewport.width
-
-    // 执行渲染
-    await page.render({ 
-      canvasContext: ctx,
-      viewport,
-      intent: 'display' // 添加渲染意图参数
-    }).promise
-
-    // 高亮处理（添加边界校验）
-    if (searchText.value) {
-    //   const textContent = await page.getTextContent()
-    //   textContent.items
-    //     .filter(item => item.str?.toLowerCase().includes(searchText.value.toLowerCase()))
-    //     .forEach(({ transform, str }) => {
-    //       if (!transform || transform.length < 6) return
-          
-    //       const [,,, scaleY, x, y] = transform
-    //       const textWidth = ctx.measureText(str).width
-          
-    //       // 安全绘制高亮
-    //       if (textWidth > 0 && scaleY > 0) {
-    //         ctx.fillStyle = 'rgba(255, 255, 0, 0.5)'
-    //         ctx.fillRect(x, y - scaleY, textWidth, scaleY)
-    //       }
-    //     })
-    }
-
-    // 更新状态
-    currentPage.value = pageNumber
-  } catch (error) {
-    console.error('详细错误信息:', {
-      error,
-      pageNumber,
-      zoomLevel: zoomLevel.value,
-      pdfReady: !!pdfDoc.value,
-      canvasReady: !!element.value
-    })
-  } finally {
-    isPageRendering.value = false
-    // 添加 pending 页码校验
-    if (pendingPageNumber.value !== null && pendingPageNumber.value !== currentPage.value) {
-      renderPage(pendingPageNumber.value)
-      pendingPageNumber.value = null
-    }
-  }
 }
-
-// PDF 初始化
-onMounted(async () => {
-  store.element = document.getElementById('pdf-canvas')
-  
-  try {
-    const response = await fetch('/api/sample.pdf')
-    const pdf = await pdfjsLib.getDocument({
-      data: await response.arrayBuffer()
-    }).promise
-    
-    await store.init(pdf)
-    renderPage(currentPage.value)
-  } catch (error) {
-    alert(`PDF加载失败: ${error.message}`)
-  }
-})
 
 // 分页控制逻辑
 const setupPagination = () => {
-  const handlers = {
-    prev: () => !isPageRendering.value && currentPage.value > 1 && 
-      (currentPage.value--, renderPage(currentPage.value)),
-    next: () => !isPageRendering.value && currentPage.value < totalPages.value && 
-      (currentPage.value++, renderPage(currentPage.value))
-  }
+    const handlers = {
+        prev: () => !isPageRendering.value && currentPage.value > 1 &&
+            (currentPage.value--, renderPage(currentPage.value)),
+        next: () => !isPageRendering.value && currentPage.value < totalPages.value &&
+            (currentPage.value++, renderPage(currentPage.value))
+    }
 
-  document.getElementById('prev').addEventListener('click', handlers.prev)
-  document.getElementById('next').addEventListener('click', handlers.next)
-  
-  return () => {
-    document.getElementById('prev').removeEventListener('click', handlers.prev)
-    document.getElementById('next').removeEventListener('click', handlers.next)
-  }
+    document.getElementById('prev').addEventListener('click', handlers.prev)
+    document.getElementById('next').addEventListener('click', handlers.next)
+
+    return () => {
+        document.getElementById('prev').removeEventListener('click', handlers.prev)
+        document.getElementById('next').removeEventListener('click', handlers.next)
+    }
 }
 
 // 搜索功能
 const setupSearch = () => {
-  const sidebar = document.getElementById('sidebar')
-  const input = document.getElementById('search-input')
-  
-  const handleSearch = async () => {
-    const query = input.value.trim()
-    if (!query) return sidebar.innerHTML = ''
-    
-    searchText.value = query
-    renderPage(currentPage.value)
-    
-    // 构建搜索结果
-    const results = allItems.value.flatMap(({ pageNumber, str, transform }) => 
-      str.split(' ')
-        .filter(word => word.toLowerCase().includes(query.toLowerCase()))
-        .map(word => ({ pageNumber, str: word, transform }))
-    )
-    
-    // 渲染结果列表
-    sidebar.innerHTML = `<ul>${results.map(({ pageNumber, str }) => `
+    const sidebar = document.getElementById('sidebar')
+    const input = document.getElementById('search-input')
+
+    const handleSearch = async () => {
+        const query = input.value.trim()
+        if (!query) return sidebar.innerHTML = ''
+
+        searchText.value = query
+        renderPage(currentPage.value)
+
+        // 构建搜索结果
+        const results = allItems.value.flatMap(({ pageNumber, str, transform }) =>
+            str.split(' ')
+                .filter(word => word.toLowerCase().includes(query.toLowerCase()))
+                .map(word => ({ pageNumber, str: word, transform }))
+        )
+
+        // 渲染结果列表
+        sidebar.innerHTML = `<ul>${results.map(({ pageNumber, str }) => `
       <li class="list-item" @click="renderPage(${pageNumber})">
         第${pageNumber}页: ${str}
       </li>
     `).join('')}</ul>`
-  }
+    }
 
-  document.getElementById('search-btn').addEventListener('click', handleSearch)
-  return () => {
-    document.getElementById('search-btn').removeEventListener('click', handleSearch)
-  }
+    document.getElementById('search-btn').addEventListener('click', handleSearch)
+    return () => {
+        document.getElementById('search-btn').removeEventListener('click', handleSearch)
+    }
 }
 
-// 生命周期管理
+const loadPdf = async (url, canvasElementId) => {
+    store.element = document.getElementById('pdf-canvas')
+    try {
+        const response = await fetch(url)
+        const pdf = await pdfjsLib.getDocument({
+            data: await response.arrayBuffer()
+        }).promise
+
+        await store.init(pdf)
+        renderPage(currentPage.value)
+    } catch (error) {
+        alert(`PDF加载失败: ${error.message}`)
+    }
+}
+
+// 初始化
+onMounted(async () => {
+    loadPdf('/api/sample.pdf', 'pdf-canvas')
+})
+
+// 添加事件监听器
 onMounted(() => {
-  const cleanPagination = setupPagination()
-  const cleanSearch = setupSearch()
-  
-  return () => {
-    cleanPagination()
-    cleanSearch()
-  }
+    const cleanPagination = setupPagination() // 设置分页事件监听器
+    const cleanSearch = setupSearch() // 设置搜索事件监听器
+
+    return () => {
+        cleanPagination() // 清理分页事件监听器
+        cleanSearch() // 清理搜索事件监听器
+    }
 })
 
-// 响应式监听
-watch(currentPage, (val) => {
-  document.getElementById('page_num').textContent = val
-})
-
-watch(totalPages, (val) => {
-  document.getElementById('page_count').textContent = val
-})
 </script>
 
 <template>
@@ -192,7 +187,7 @@ watch(totalPages, (val) => {
                 <button id="search-btn" class="toolbar-button">Search</button>
                 <button id="prev" class="toolbar-button">Previous</button>
                 <div class="page flex items-center gap-1 text-[#333] text-sm">
-                    <span id="page_num">1</span>/<span id="page_count">0</span>
+                    <span id="page_num">{{ currentPage }}</span>/<span id="page_count">{{ totalPages }}</span>
                 </div>
                 <button id="next" class="toolbar-button">Next</button>
             </div>
