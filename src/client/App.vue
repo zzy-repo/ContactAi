@@ -247,7 +247,7 @@ onMounted(() => {
                 <div id="sidebar" class="w-100 p-5 bg-white border-l border-[#e0e0e0] border-solid overflow-y-auto">
                     <p v-if="isCherking">等待回答中，请不要关掉或刷新页面...</p>
                     <ul class="p-0 m-0">
-                        <li v-if="listItems && 'pageNumber' in listItems[0]"
+                        <li v-if="listItems.length > 0 && 'pageNumber' in listItems[0]"
                             v-for="(item, index) in listItems" :key="index" @click="renderPage(item.pageNumber)"
                             class="list-none px-4.5 py-3.5 border-b border-[#f0f4f8] text-sm text-[#4a5568] font-medium cursor-pointer select-none transition-all duration-300 hover:bg-[#f5f7fa] hover:text-[#007bff] hover:translate-x-1.25">
                             <span>
@@ -255,7 +255,7 @@ onMounted(() => {
                             </span>
                         </li>
 
-                        <li v-if="listItems && 'rule' in listItems[0]" v-for="(item, index) in listItems"
+                        <li v-if="listItems.length > 0 && 'rule' in listItems[0]" v-for="(item, index) in listItems"
                             :key="index"
                             class="px-6 py-4 border-b border-[#f0f4f8] text-sm text-[#4a5568] font-medium cursor-pointer select-none transition-all duration-300 hover:bg-[#f5f7fa] hover:text-[#007bff] hover:translate-x-2">
                             <div class="flex flex-col space-y-1">
